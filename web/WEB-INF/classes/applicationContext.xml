@@ -1,0 +1,91 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	   xmlns:context="http://www.springframework.org/schema/context"
+	   xmlns:util="http://www.springframework.org/schema/util"
+	   xmlns:jee="http://www.springframework.org/schema/jee"
+	   xmlns:tx="http://www.springframework.org/schema/tx"
+	   xmlns:jpa="http://www.springframework.org/schema/data/jpa"
+	   xmlns:mvc="http://www.springframework.org/schema/mvc"
+	   xmlns:p="http://www.springframework.org/schema/p" xmlns:aop="http://www.springframework.org/schema/aop"
+	   xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.0.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.0.xsd
+		http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-3.2.xsd
+		http://www.springframework.org/schema/jee http://www.springframework.org/schema/jee/spring-jee-4.0.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.0.xsd
+		http://www.springframework.org/schema/data/jpa http://www.springframework.org/schema/data/jpa/spring-jpa-1.3.xsd
+		http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-4.0.xsd http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd">
+	<util:properties id="jdbc" location="classpath:db.properties"></util:properties>
+
+	<bean id="dataSource" class="org.springframework.jdbc.datasource.DriverManagerDataSource" >
+		<property name="driverClassName" value="#{jdbc.driverName}"></property>
+		<property name="url" value="#{jdbc.url}"></property>
+		<property name="username" value="#{jdbc.userName}"></property>
+		<property name="password" value="#{jdbc.password}"></property>
+	</bean>
+
+	<!--定义 SQLSessionFactoryBean 将Mybatis中的主配置文件中的重要参数引入spring配置文件中-->
+	<bean id="ssf" class="org.mybatis.spring.SqlSessionFactoryBean">
+		<!--注入数据源（链接 信息）-->
+		<property name="dataSource" ref="dataSource"/>
+		<!--注入sql映射定义文件,若是多个mapper文件可以用*代替-->
+		<property name="mapperLocations" value="classpath:org/emp/sql/*.xml"/>
+	</bean>
+
+	<!--按指定包扫描接口，批量生成接口的实例，采用接口名首字母小写作为接口实例的ID-->
+	<bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+		<property name="basePackage" value="org.emp.dao"></property>
+		<!--此属性可以不用指定，spring会自动注入-->
+		<!--org.ks.dao包下有可能有些接口是通过Mapper实现的，也有可能是自己实现的
+		且不符合Mapper规范，那么就不能把org.ks.dao下的所有接口都自动实例化
+		当出现不需要实例化的接口时，可以通过增加注解来指定哪些接口需要自动
+		生成实例-->
+		<property name="annotationClass" value="org.emp.util.MyBatisDao"></property>
+		<property name="sqlSessionFactory" ref="ssf"></property>
+	</bean>
+
+
+	<context:component-scan base-package="org.emp"/>
+	<!--配置HandleMapping-->
+	<mvc:annotation-driven/>
+
+	<bean id="viewResolver"
+		  class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+		<property name="prefix" value="/WEB-INF/"/>
+		<property name="suffix" value=".jsp"/>
+	</bean>
+
+	<!--配置sqlsessionTemplate-->
+	<bean id="sqSessionTemplate" class="org.mybatis.spring.SqlSessionTemplate">
+		<constructor-arg index="0" ref="ssf"/>
+	</bean>
+
+		<!--声明事务管理组件，定义具体平台的事务管理器-->
+	<bean id="txManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<property name="dataSource" ref="dataSource"/>
+	</bean>
+	<!--开启事务扫描主键-->
+	<!--<tx:annotation-driven transaction-manager="txManager" proxy-target-class="true"/>-->
+
+
+
+	<!--基于xml配置声明式事务范围及类型-->
+	<tx:advice id="txAdvice" transaction-manager="txManager">
+		<!--配置事务的属性定义-->
+		<tx:attributes>
+			<tx:method name="save" propagation="REQUIRED" isolation="DEFAULT"
+					   read-only="false" rollback-for="java.lang.NullPointerException"/>
+			<tx:method name="find*" read-only="true"/>
+			<!--对于运行时异常，默认声明式事务处理不了，需要指明-->
+
+			<tx:method name="add*" propagation="REQUIRED" rollback-for="java.lang.ClassNotFoundException"/>
+			<tx:method name="update*" propagation="REQUIRED"/>
+			<tx:method name="delete*" propagation="REQUIRED"/>
+		</tx:attributes>
+	</tx:advice>
+
+	<!--配置aop-->
+	<aop:config proxy-target-class="true">
+		<aop:pointcut id="txPoint" expression="within(org.emp.controller..*)"/>
+		<aop:advisor advice-ref="txAdvice" pointcut-ref="txPoint"/>
+	</aop:config>
+</beans>

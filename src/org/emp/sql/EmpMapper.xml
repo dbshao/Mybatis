@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8" ?>  
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+		"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.emp.dao.EmpDao">
+	<select id="findById" resultType="org.emp.entity.Emp" parameterType="int">
+		SELECT * FROM emp WHERE empno=#{empno}
+	</select>
+
+	<select id="findAll" resultType="org.emp.entity.Emp">
+		SELECT * FROM emp;
+	</select>
+
+	<insert id="save" parameterType="org.emp.entity.Emp">
+		INSERT INTO emp VALUES (#{empno},#{ename},#{job},
+		#{mgr},#{hiredate},#{sal},#{comm,jdbcType=DOUBLE},#{deptno})
+	</insert>
+
+	<delete id="delete" parameterType="int">
+		DELETE FROM emp WHERE empno=#{empno}
+	</delete>
+
+	<!--<update id="update" parameterType="org.emp.entity.Emp">-->
+		<!--UPDATE emp SET empno=#{empno},ename=#{ename},job=#{job},mgr=#{mgr},-->
+		<!--hiredate=#{hiredate},sal=#{sal},comm=#{comm},deptno=#{deptno} WHERE empno=#{empno}-->
+	<!--</update>-->
+
+	<update id="update" parameterType="org.emp.entity.Emp">
+		UPDATE emp
+		<set>
+			<if test="ename!=null"> ename=#{ename},</if>
+			<if test="job!=null">job=#{job},</if>
+		</set>
+		WHERE empno=#{empno}
+	</update>
+
+
+	<!--查询部门下的所有员工 if-->
+	<select id="findByDept" parameterType="org.emp.entity.Condition" resultType="org.emp.entity.Emp">
+		select * from emp
+		<if test="deptno!=null">
+			WHERE deptno=${deptno}
+		</if>
+	</select>
+
+	<!--若条件工资大于3000则查询大于当前收入的员工，否则查询>=3000的员工-->
+	<select id="findBySalary" parameterType="org.emp.entity.Condition" resultType="org.emp.entity.Emp">
+		SELECT * FROM emp
+		<choose>
+			<when test="salary>3000"> WHERE sal>#{salary}</when>
+			<otherwise>WHERE sal>3000</otherwise>
+		</choose>
+	</select>
+
+	<!--where标签，查询当前部门下，大于当前员工收入的员工-->
+	<select id="findByDeptAndSalary" parameterType="org.emp.entity.Condition" resultType="org.emp.entity.Emp">
+		SELECT * FROM emp
+		<where>
+			<if test="deptno!=null"> and deptno=#{deptno}</if>
+			<if test="salary!=null">and sal>#{salary}</if>
+		</where>
+	</select>
+
+	<!--使用trim代替where 查询当前部门下大于当前收入的员工-->
+	<select id="findBydeptAndSalary2" parameterType="org.emp.entity.Condition" resultType="org.emp.entity.Emp">
+		SELECT * FROM emp
+		<trim prefix="where" prefixOverrides="and|or">
+			<if test="deptno!=null">and deptno=#{deptno}</if>
+			<if test="salary!=null">and sal>#{sal}</if>
+		</trim>
+	</select>
+
+	<!--trim 代替set-->
+	<update id="update2" parameterType="org.emp.entity.Emp">
+		UPDATE emp
+		<trim prefix="set" suffixOverrides=",">
+			<if test="ename!=null">ename=#{ename}</if>
+			<if test="job!=null">job=#{job}</if>
+		</trim>
+
+	</update>
+
+	<!--<foreach></foreach>-->
+	<!--根据ids查询员工-->
+	<select id="findByIds" parameterType="org.emp.entity.Condition" resultType="org.emp.entity.Emp">
+		SELECT * FROM emp WHERE empno IN
+		<foreach collection="empnos" item="id" open="(" close=")" separator=",">
+			#{id}
+		</foreach>
+	</select>
+</mapper>
